@@ -5,10 +5,10 @@ import java.util.Scanner;
 
 public class Controller {
 
-    Jdbc jdbc;
+    static Jdbc jdbc;
     Account account;
 
-    public void init(String dbName){
+    public void init(String dbName) {
         String url = "jdbc:sqlite:" + dbName;
         SQLiteDataSource dataSource = new SQLiteDataSource();
         dataSource.setUrl(url);
@@ -16,6 +16,7 @@ public class Controller {
         jdbc.init();
         runApplication();
     }
+
     public void runApplication() {
         Scanner scanner = new Scanner(System.in);
         helloMessage();
@@ -43,6 +44,7 @@ public class Controller {
         System.out.println("2. Log into account");
         System.out.println("0. Exit");
     }
+
     void createAccount() {
         account = new Account();
         Random random = new Random();
@@ -58,7 +60,8 @@ public class Controller {
         account.setBalance(0);
         jdbc.addNewAccount(account);
     }
-    String generateCardNumber(Random random){
+
+    String generateCardNumber(Random random) {
         int[] numberMII = new int[16];
         int[] temporaryNumber = new int[16];
         numberMII[0] = 4;
@@ -93,13 +96,15 @@ public class Controller {
         }
         return cardNumber.toString();
     }
-    String generatePin(Random random){
+
+    String generatePin(Random random) {
         StringBuilder pin = new StringBuilder();
         for (int i = 0; i < 4; i++) {
             pin.append(random.nextInt(10));
         }
         return pin.toString();
     }
+
     void logIn() {
         Scanner scanner = new Scanner(System.in);
         System.out.println("Enter your card number:");
@@ -109,7 +114,7 @@ public class Controller {
         boolean accept = false;
 
         account = jdbc.findAccount(number, pin);
-        if (account != null){
+        if (account != null) {
             accept = true;
         }
         if (accept) {
@@ -120,24 +125,109 @@ public class Controller {
             runApplication();
         }
     }
+
     void balanceSite() {
         Scanner scanner = new Scanner(System.in);
         System.out.println("1. Balance");
-        System.out.println("2. Log out");
+        System.out.println("2. Add income");
+        System.out.println("3. Do transfer");
+        System.out.println("4. Close account");
+        System.out.println("5. Log out");
         System.out.println("0. Exit");
         int chosenNumber = scanner.nextInt();
         switch (chosenNumber) {
             case 1:
-                System.out.println("Balance: 0");
+                balanceValueSite();
                 balanceSite();
                 break;
             case 2:
+                incomeSite();
+                balanceSite();
+                break;
+            case 3:
+                moneyTransferSite();
+                balanceSite();
+                break;
+            case 4:
+                closeAccount();
+                helloMessage();
+                break;
+            case 5:
                 System.out.println("You have successfully logged out!");
                 runApplication();
                 break;
             case 0:
                 System.out.print("Bye!");
                 System.exit(0);
+        }
+    }
+
+    void incomeSite() {
+        System.out.println("Enter income:");
+        Scanner scanner = new Scanner(System.in);
+        int income = scanner.nextInt();
+        account.setBalance(account.getBalance() + income);
+        jdbc.updateAccountBalance(account);
+        System.out.println("Income was added!");
+    }
+
+    void balanceValueSite() {
+        int balance = jdbc.getBalance(account);
+        System.out.println("Balance: " + balance);
+    }
+
+    void closeAccount() {
+        jdbc.closeAccount(account);
+        System.out.println("The account has been closed!");
+    }
+
+    void moneyTransferSite() {
+        Scanner scanner = new Scanner(System.in);
+        System.out.println("Transfer");
+        System.out.println("Enter card number:");
+        String transferAccount = scanner.next();
+        boolean checkLuhn = checkLuhnAlgoritm(transferAccount);
+        if (!checkLuhn) {
+            System.out.println("Probably you made mistake in the card number. Please try again!");
+            return;
+        }
+        boolean checkAccountExists = jdbc.findTransferAccount(transferAccount);
+        if (!checkAccountExists) {
+            System.out.println("Such a card does not exist.");
+            return;
+        }
+        System.out.println("Enter how much money you want to transfer:");
+        int money = scanner.nextInt();
+        boolean checkMoney = jdbc.isMoneyEnough(money, account);
+        if (!checkMoney) {
+            System.out.println("Not enough money!");
+            return;
+        }
+        jdbc.transfer(account, transferAccount, money);
+        System.out.println("Success!");
+    }
+
+    boolean checkLuhnAlgoritm(String checkAccount) {
+        int[] cardNumber = new int[16];
+        for (int i = 0; i < cardNumber.length; i++) {
+            cardNumber[i] = Integer.parseInt(String.valueOf(checkAccount.charAt(i)));
+        }
+        for (int i = 0; i < cardNumber.length; i += 2) {
+            cardNumber[i] *= 2;
+        }
+        for (int i = 0; i < cardNumber.length; i += 2) {
+            if (cardNumber[i] > 9) {
+                cardNumber[i] -= 9;
+            }
+        }
+        int sum = 0;
+        for (int i = 0; i < cardNumber.length; i++) {
+            sum += cardNumber[i];
+        }
+        if (sum % 10 == 0) {
+            return true;
+        } else {
+            return false;
         }
     }
 }
